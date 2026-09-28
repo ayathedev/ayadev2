@@ -1,0 +1,11 @@
+{
+  "short_name": "Aya Dev OS",
+  "name": "Aya OS Portfolio Edition",
+  "description": "Chrome OS style desktop environment created by Aya Kalimah Satya Ruane to showcase custom applications and projects on a local server hotspot.",
+  "icons": [],
+  "start_url": "/",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "any"
+}

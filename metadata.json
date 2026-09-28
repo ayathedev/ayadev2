@@ -1,0 +1,6 @@
+{
+  "name": "Aya OS Portfolio Edition",
+  "description": "Chrome OS style desktop environment created by Aya Kalimah Satya Ruane to showcase custom applications and projects on a local server hotspot.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
