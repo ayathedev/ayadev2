@@ -59,9 +59,17 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({
         >
           {/* Header Row */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div>
-              <h3 className="text-sm font-bold text-slate-100">Aya OS Portfolio Edition</h3>
-              <p className="text-[11px] text-slate-400">Created by Aya Kalimah Satya Ruane</p>
+            <div className="flex items-center gap-3">
+              <img
+                src="/avatar.jpg"
+                alt="Aya Kalimah Satya Ruane"
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-cyan-500/40 shadow-md shrink-0"
+                referrerPolicy="no-referrer"
+              />
+              <div>
+                <h3 className="text-sm font-bold text-slate-100">Aya OS Portfolio</h3>
+                <p className="text-[11px] text-slate-400">Aya Kalimah Satya Ruane</p>
+              </div>
             </div>
             <button
               onClick={() => {

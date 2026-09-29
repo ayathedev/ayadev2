@@ -110,9 +110,12 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({
                 </p>
               </div>
 
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl shadow-lg border border-white/10 shrink-0">
-                A
-              </div>
+              <img
+                src="/avatar.jpg"
+                alt="Aya Kalimah Satya Ruane"
+                className="w-16 h-16 rounded-2xl object-cover ring-2 ring-cyan-500/50 shadow-lg shrink-0"
+                referrerPolicy="no-referrer"
+              />
             </div>
 
             {/* Clear Creator Statement Box */}
@@ -128,7 +131,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({
                 <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-2.5">
                   <Terminal className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
                   <div>
-                    <strong className="text-xs text-slate-200 block font-semibold">Crosh Terminal</strong>
+                    <strong className="text-xs text-slate-200 block font-semibold">Aya Terminal</strong>
                     <span className="text-[11px] text-slate-400">UNIX shell emulation & neofetch built by Aya</span>
                   </div>
                 </div>
@@ -157,13 +160,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-2.5">
-                  <Gamepad2 className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
-                  <div>
-                    <strong className="text-xs text-slate-200 block font-semibold">Space Defense 2D</strong>
-                    <span className="text-[11px] text-slate-400">60fps HTML5 Canvas arcade game by Aya</span>
-                  </div>
-                </div>
+
 
                 <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-2.5">
                   <FileText className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />

@@ -31,4 +31,24 @@
   .animate-neon-glow {
     animation: neon-glow-pulse 1.2s ease-in-out infinite;
   }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20, 184, 166, 0.2) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(20, 184, 166, 0.2);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+  }
+  .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: rgba(20, 184, 166, 0.5);
+  }
 }
+

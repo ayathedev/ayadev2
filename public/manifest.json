@@ -1,11 +1,20 @@
 {
-  "short_name": "Aya Dev OS",
-  "name": "Aya OS Portfolio Edition",
-  "description": "Chrome OS style desktop environment created by Aya Kalimah Satya Ruane to showcase custom applications and projects on a local server hotspot.",
-  "icons": [],
+  "id": "/",
+  "name": "AYASEC SECURITY CAM",
+  "short_name": "AYASEC",
+  "description": "Cross-platform security camera web app with Spaces, secure access codes, Camera and Viewer modes, live streaming, motion detection, and multi-device support.",
   "start_url": "/",
-  "background_color": "#020617",
-  "theme_color": "#0f172a",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "any"
+  "orientation": "any",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }

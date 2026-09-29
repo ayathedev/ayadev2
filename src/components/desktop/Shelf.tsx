@@ -13,8 +13,12 @@ import {
   Battery,
   Radio,
   Layers,
-  Mic,
-  Bike,
+  Film,
+  HeartHandshake,
+  Newspaper,
+  Box,
+  LayoutGrid,
+  Mic
 } from 'lucide-react';
 import { APPS_METADATA } from '../../data/portfolioData';
 import { WindowState, AppId } from '../../types';
@@ -43,8 +47,12 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
   Settings,
   Radio,
   Layers,
+  Film,
+  HeartHandshake,
+  Newspaper,
+  Box,
+  LayoutGrid,
   Mic,
-  Bike,
 };
 
 export const Shelf: React.FC<ShelfProps> = ({

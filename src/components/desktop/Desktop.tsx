@@ -137,6 +137,12 @@ export const Desktop: React.FC = () => {
     });
   };
 
+  const toggleFullScreen = (id: string) => {
+    playUiSound('click', soundEnabled);
+    setWindows(prev => prev.map(w => w.id === id ? { ...w, isFullScreen: !w.isFullScreen } : w));
+    focusWindow(id);
+  };
+
   const updateWindowPos = (id: string, x: number, y: number, width: number, height: number) => {
     setWindows(prev => prev.map(w => w.id === id ? { ...w, x, y, width, height } : w));
   };
@@ -149,6 +155,8 @@ export const Desktop: React.FC = () => {
   const rerunSetupWizard = () => {
     setShowSetupWizard(true);
   };
+
+  const isAnyFullScreen = windows.some(w => w.isFullScreen);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden select-none font-sans bg-slate-950 text-slate-100 flex flex-col">
@@ -179,30 +187,30 @@ export const Desktop: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Offline Hotspot Captive Portal Banner */}
-      <div className="relative z-10 bg-slate-950/80 border-b border-slate-800/80 px-4 py-1.5 flex items-center justify-between text-xs backdrop-blur-md">
-        <div className="flex items-center gap-2 text-cyan-400 font-medium">
-          <Wifi className="w-3.5 h-3.5 animate-pulse" />
-          <span>Local No-Internet Hotspot Access Point</span>
-          <span className="hidden sm:inline-block text-slate-400 font-mono text-[11px] bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-            Node: 192.168.4.1
-          </span>
-        </div>
+      {/* Top Capture Portal Info Bar */}
+      {!isAnyFullScreen && (
+        <div className="relative z-10 bg-slate-950/80 border-b border-slate-800/80 px-4 py-1.5 flex items-center justify-between text-xs backdrop-blur-md">
+          <div className="flex items-center gap-2 text-cyan-400 font-medium">
+            <Wifi className="w-3.5 h-3.5 animate-pulse" />
+            <span className="hidden sm:inline-block text-slate-400 font-mono text-[11px] bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+              Node: 192.168.4.1
+            </span>
+          </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={rerunSetupWizard}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-cyan-400" /> Setup Tour
-          </button>
-          <div className="flex items-center gap-1.5 text-slate-300 font-medium">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden md:inline">Created by</span>
-            <strong className="text-cyan-300 font-bold">Aya Kalimah Satya Ruane</strong>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={rerunSetupWizard}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-cyan-400" /> Setup Tour
+            </button>
+            <div className="flex items-center gap-1.5 text-slate-300 font-medium">
+              <span className="hidden md:inline">Created by</span>
+              <strong className="text-cyan-300 font-bold">Aya Kalimah Satya Ruane</strong>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Desktop Workspace for Windows */}
       <div className="relative flex-1 z-10 overflow-hidden">
@@ -212,6 +220,7 @@ export const Desktop: React.FC = () => {
           closeWindow={closeWindow}
           minimizeWindow={minimizeWindow}
           maximizeWindow={maximizeWindow}
+          onFullScreen={toggleFullScreen}
           focusWindow={focusWindow}
           updateWindowPos={updateWindowPos}
           openApp={openApp}
@@ -244,25 +253,27 @@ export const Desktop: React.FC = () => {
       </div>
 
       {/* Chrome OS Bottom Shelf Dock */}
-      <Shelf
-        windows={windows}
-        activeWindowId={activeWindowId}
-        isLauncherOpen={isLauncherOpen}
-        toggleLauncher={() => {
-          playUiSound('click', soundEnabled);
-          setIsLauncherOpen(!isLauncherOpen);
-          if (isQuickSettingsOpen) setIsQuickSettingsOpen(false);
-        }}
-        isQuickSettingsOpen={isQuickSettingsOpen}
-        toggleQuickSettings={() => {
-          playUiSound('click', soundEnabled);
-          setIsQuickSettingsOpen(!isQuickSettingsOpen);
-          if (isLauncherOpen) setIsLauncherOpen(false);
-        }}
-        openApp={openApp}
-        focusWindow={focusWindow}
-        soundEnabled={soundEnabled}
-      />
+      {!isAnyFullScreen && (
+        <Shelf
+          windows={windows}
+          activeWindowId={activeWindowId}
+          isLauncherOpen={isLauncherOpen}
+          toggleLauncher={() => {
+            playUiSound('click', soundEnabled);
+            setIsLauncherOpen(!isLauncherOpen);
+            if (isQuickSettingsOpen) setIsQuickSettingsOpen(false);
+          }}
+          isQuickSettingsOpen={isQuickSettingsOpen}
+          toggleQuickSettings={() => {
+            playUiSound('click', soundEnabled);
+            setIsQuickSettingsOpen(!isQuickSettingsOpen);
+            if (isLauncherOpen) setIsLauncherOpen(false);
+          }}
+          openApp={openApp}
+          focusWindow={focusWindow}
+          soundEnabled={soundEnabled}
+        />
+      )}
 
       {/* Interactive First Time Setup Wizard Modal */}
       <SetupWizard

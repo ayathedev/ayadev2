@@ -1,0 +1,8 @@
+{
+  "name": " OL!AVE",
+  "description": "A professional-grade web-based video editor inspired by KineMaster, featuring multi-track timelines, advanced filters, and AI-powered enhancements. OL!AVE stands for Oh, Look! Another Video Editor!",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

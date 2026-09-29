@@ -4,8 +4,8 @@ import { PORTFOLIO_PROJECTS } from '../../data/portfolioData';
 
 export const TerminalApp: React.FC = () => {
   const [history, setHistory] = useState<Array<{ type: 'input' | 'output'; text: string }>>([
-    { type: 'output', text: 'Aya OS Portfolio Edition v2.5 (crosh shell)' },
-    { type: 'output', text: 'Created by Aya Kalimah Satya Ruane for Local Server Hotspot Node.' },
+    { type: 'output', text: 'Aya OS Portfolio Edition v2.5 (aya-shell)' },
+    { type: 'output', text: 'Created by Aya Kalimah Satya Ruane.' },
     { type: 'output', text: 'Type "help" or "neofetch" to begin exploring.\n' },
   ]);
   const [input, setInput] = useState('');
@@ -32,7 +32,7 @@ export const TerminalApp: React.FC = () => {
     if (lower === 'help') {
       newHistory.push({
         type: 'output',
-        text: `Available Crosh Commands:
+        text: `Available Commands:
   help       - Show this list of commands
   whoami     - Display OS author information
   neofetch   - Render Aya OS Portfolio Edition system diagnostics
@@ -47,7 +47,7 @@ export const TerminalApp: React.FC = () => {
         text: `User: guest@aya-dev-os
 Creator: Aya Kalimah Satya Ruane
 Role: Software Engineer & Creative Technologist
-Node: Local Web Server Hotspot (192.168.4.1)`,
+Node: Aya OS Environment`,
       });
     } else if (lower === 'neofetch') {
       newHistory.push({
@@ -55,12 +55,12 @@ Node: Local Web Server Hotspot (192.168.4.1)`,
         text: `       .---.          guest@aya-os-portfolio
       /  .  \\         -----------------------
      |  | |  |        OS: Aya OS Portfolio Edition
-     |  | |  |        Kernel: Local Hotspot Web Engine v2.5
+     |  | |  |        Kernel: Aya OS Web Engine v2.5
       \\  '  /         Uptime: 100% Offline Standalone
        '---'          Creator: Aya Kalimah Satya Ruane
-                      Shell: crosh (React + TypeScript)
-                      Apps: Terminal, Files, SynthLab, Canvas Studio, Space Defense 2D
-                      IP: 192.168.4.1`,
+                      Shell: aya-shell (React + TypeScript)
+                      Apps: Terminal, Files, SynthLab, Canvas Studio
+                      Node: Active`,
       });
     } else if (lower === 'projects') {
       const projList = PORTFOLIO_PROJECTS.map(
@@ -99,7 +99,7 @@ Systems: Express, PWA Service Workers, Captive Portal Networking, Web Sockets`,
       <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-500 text-[11px]">
         <div className="flex items-center gap-2">
           <TerminalIcon className="w-3.5 h-3.5 text-emerald-400" />
-          <span>crosh - Aya OS Portfolio Edition</span>
+          <span>aya-shell - Aya OS Portfolio Edition</span>
         </div>
         <span className="text-slate-600">Aya Kalimah Satya Ruane</span>
       </div>

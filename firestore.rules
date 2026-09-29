@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // -------------------------------------------------------------------------
+    // GLOBALS & HELPERS
+    // -------------------------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // USER BASE DATA
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // User Notifications
+      match /notifications/{notificationId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User Clients
+      match /clients/{clientId} {
+        allow read, write: if isOwner(userId);
+        
+        // Client Sub-resources
+        match /documents/{docId} {
+          allow read, write: if isOwner(userId);
+        }
+        match /assessments/{assessmentId} {
+          allow read, write: if isOwner(userId);
+        }
+        match /appointments/{appointmentId} {
+          allow read, write: if isOwner(userId);
+        }
+        match /referrals/{referralId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+      
+      // User Tasks
+      match /tasks/{taskId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User Partnerships
+      match /partnerships/{partnershipId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}

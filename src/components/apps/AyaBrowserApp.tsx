@@ -12,11 +12,19 @@ import {
   Code, 
   Cpu, 
   Sparkles,
-  Layers
+  Layers,
+  Box,
+  ChevronRight,
+  Shield
 } from 'lucide-react';
 import { USER_PROFILE, PORTFOLIO_PROJECTS } from '../../data/portfolioData';
+import { AppId } from '../../types';
 
-export const ChromeBrowserApp: React.FC = () => {
+interface AyaBrowserProps {
+  openApp?: (appId: AppId) => void;
+}
+
+export const AyaBrowserApp: React.FC<AyaBrowserProps> = ({ openApp }) => {
   const [activeTab, setActiveTab] = useState<'home' | 'projects' | 'architecture' | 'resume'>('home');
   const [selectedProjectId, setSelectedProjectId] = useState<string>(PORTFOLIO_PROJECTS[0].id);
 
@@ -35,7 +43,7 @@ export const ChromeBrowserApp: React.FC = () => {
         {/* Omnibox */}
         <div className="flex-1 bg-slate-900 border border-slate-800 rounded-full px-3 py-1 flex items-center gap-2 text-xs">
           <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-          <span className="text-slate-300 font-mono">http://192.168.4.1/portfolio/{activeTab}</span>
+          <span className="text-slate-300 font-mono">http://aya.os/portfolio/{activeTab}</span>
         </div>
 
         {/* Tab Switchers */}
@@ -73,26 +81,34 @@ export const ChromeBrowserApp: React.FC = () => {
           <div className="max-w-3xl mx-auto space-y-8">
             {/* Hero Card */}
             <div className="relative rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border border-slate-800/90 p-8 shadow-2xl overflow-hidden">
-              <div className="relative z-10 space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">
-                  <Sparkles className="w-3.5 h-3.5" /> Created by {USER_PROFILE.name}
-                </div>
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+                <img
+                  src={USER_PROFILE.avatarUrl}
+                  alt={USER_PROFILE.name}
+                  className="w-24 h-24 md:w-28 md:h-28 rounded-3xl object-cover ring-2 ring-cyan-500/50 shadow-2xl shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="space-y-4 flex-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">
+                    Aya OS Environment • Created by {USER_PROFILE.name}
+                  </div>
 
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                  Software Engineering & Creative Projects Node
-                </h1>
+                  <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                    Software Engineering & Creative Projects Node
+                  </h1>
 
-                <p className="text-sm text-slate-300 leading-relaxed max-w-xl">
-                  {USER_PROFILE.bio}
-                </p>
+                  <p className="text-sm text-slate-300 leading-relaxed max-w-xl">
+                    {USER_PROFILE.bio}
+                  </p>
 
-                <div className="pt-2 flex items-center gap-3">
-                  <button
-                    onClick={() => setActiveTab('projects')}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 transition-all"
-                  >
-                    Explore My Showcase Projects
-                  </button>
+                  <div className="pt-2 flex items-center gap-3">
+                    <button
+                      onClick={() => setActiveTab('projects')}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 transition-all"
+                    >
+                      Explore My Showcase Projects
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -125,6 +141,23 @@ export const ChromeBrowserApp: React.FC = () => {
                     </p>
                   </div>
                 ))}
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => openApp && openApp('ayasec-visionary')}
+                  className="w-full p-4 rounded-2xl bg-gradient-to-r from-cyan-600/20 to-indigo-600/20 border border-cyan-500/30 hover:border-cyan-400 transition-all flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                       <Shield className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                       <h4 className="text-sm font-bold text-white">Featured: Aya Sec Security Cam</h4>
+                       <p className="text-xs text-slate-400">Cross-Platform Remote Surveillance Workstation</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                </button>
               </div>
             </div>
           </div>
@@ -160,6 +193,16 @@ export const ChromeBrowserApp: React.FC = () => {
                   <p className="text-xs text-slate-400 mt-1">{selectedProject.subtitle}</p>
                 </div>
 
+                {selectedProject.appId && openApp && (
+                  <button
+                    onClick={() => openApp(selectedProject.appId!)}
+                    className="w-full sm:w-auto px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-900/20"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Launch {selectedProject.title} Window
+                  </button>
+                )}
+
                 <p className="text-xs text-slate-300 leading-relaxed">
                   {selectedProject.longDescription}
                 </p>
@@ -194,16 +237,16 @@ export const ChromeBrowserApp: React.FC = () => {
         {activeTab === 'architecture' && (
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-              <h2 className="text-xl font-bold text-white">Local Hotspot System Architecture</h2>
+              <h2 className="text-xl font-bold text-white">Aya OS System Architecture</h2>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Aya OS Portfolio Edition is engineered to serve as a zero-dependency local web OS. When a device joins the local Wi-Fi network, the web server handles captive portal requests and delivers this desktop environment directly.
               </p>
 
               <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-xs font-mono">
-                <div className="text-cyan-400">[Device Connection] → [Wi-Fi Access Point 192.168.4.1]</div>
+                <div className="text-cyan-400">[Device Connection] → [Wi-Fi Access Point]</div>
                 <div className="text-emerald-400">  └─▶ Express Captive Middleware (/generate_204)</div>
                 <div className="text-purple-400">      └─▶ Aya OS Portfolio Edition Desktop Shell</div>
-                <div className="text-amber-400">          ├─▶ Crosh Terminal & Web File System</div>
+                <div className="text-amber-400">          ├─▶ Aya Terminal & Web File System</div>
                 <div className="text-pink-400">          ├─▶ Canvas Studio & SynthLab Audio</div>
                 <div className="text-sky-400">          └─▶ Offline Service Worker Cache</div>
               </div>

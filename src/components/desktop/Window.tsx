@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Minus, Square, Copy, X, Globe, Palette, Music, Folder, Terminal, Bot, Gamepad2, StickyNote, Settings, Radio, Layers, Mic, Bike, Move, PanelLeft, PanelRight } from 'lucide-react';
+import { Minus, Square, Copy, X, Globe, Palette, Music, Folder, Terminal, Bot, Gamepad2, StickyNote, Settings, Radio, Layers, Film, HeartHandshake, Newspaper, Move, PanelLeft, PanelRight, Maximize2, Box, LayoutGrid, Mic } from 'lucide-react';
 import { WindowState } from '../../types';
 
 interface WindowProps {
@@ -9,6 +9,7 @@ interface WindowProps {
   onClose: () => void;
   onMinimize: () => void;
   onMaximize: () => void;
+  onFullScreen: () => void;
   onUpdatePosition: (x: number, y: number) => void;
   onUpdateSize: (w: number, h: number) => void;
   onSnap: (side: 'left' | 'right' | null) => void;
@@ -27,8 +28,12 @@ const ICON_MAP: Record<string, any> = {
   Settings,
   Radio,
   Layers,
+  Film,
+  HeartHandshake,
+  Newspaper,
+  Box,
+  LayoutGrid,
   Mic,
-  Bike,
 };
 
 export const Window: React.FC<WindowProps> = ({
@@ -38,6 +43,7 @@ export const Window: React.FC<WindowProps> = ({
   onClose,
   onMinimize,
   onMaximize,
+  onFullScreen,
   onUpdatePosition,
   onUpdateSize,
   onSnap,
@@ -158,7 +164,17 @@ export const Window: React.FC<WindowProps> = ({
     zIndex: window.zIndex,
   };
 
-  if (window.isMaximized) {
+  if (window.isFullScreen) {
+    windowStyle = {
+      ...windowStyle,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100vh',
+      borderRadius: 0,
+      zIndex: 100, // Top of everything
+    };
+  } else if (window.isMaximized) {
     windowStyle = {
       ...windowStyle,
       top: 32,
@@ -222,8 +238,19 @@ export const Window: React.FC<WindowProps> = ({
           </span>
         </div>
 
-        {/* Right Window Controls (Chrome OS standard) */}
+        {/* Window Controls */}
         <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onFullScreen();
+            }}
+            className={`p-1.5 rounded-md transition-colors ${window.isFullScreen ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-700/60'}`}
+            title={window.isFullScreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -286,8 +313,8 @@ export const Window: React.FC<WindowProps> = ({
         {children}
       </div>
 
-      {/* Resize Handles (Only when not maximized or snapped) */}
-      {!window.isMaximized && !window.snapState && (
+      {/* Resize Handles (Only when not maximized, snapped, or fullscreen) */}
+      {!window.isMaximized && !window.snapState && !window.isFullScreen && (
         <>
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 'r')}

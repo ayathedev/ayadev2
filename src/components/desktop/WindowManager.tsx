@@ -1,19 +1,28 @@
 import React from 'react';
 import { Window } from './Window';
 import { WindowState, AppId } from '../../types';
-import { ChromeBrowserApp } from '../apps/ChromeBrowserApp';
+import { AyaBrowserApp } from '../apps/AyaBrowserApp';
 import { CanvasStudioApp } from '../apps/CanvasStudioApp';
 import { SynthLabApp } from '../apps/SynthLabApp';
 import { FileManagerApp } from '../apps/FileManagerApp';
 import { TerminalApp } from '../apps/TerminalApp';
 import { AiAssistantApp } from '../apps/AiAssistantApp';
-import { ArcadeGameApp } from '../apps/ArcadeGameApp';
 import { NotesApp } from '../apps/NotesApp';
 import { SettingsApp } from '../apps/SettingsApp';
 import { StudioApp } from '../apps/StudioApp';
 import { BuskerPadApp } from '../apps/BuskerPadApp';
-import { PodcastStudioApp } from '../apps/PodcastStudioApp';
-import { HermesEbikeApp } from '../apps/HermesEbikeApp';
+import { FrameFlowApp } from '../apps/frameflow/FrameFlowApp';
+import { HavenCareApp } from '../apps/havencare/HavenCareApp';
+import { JournalismApp } from '../apps/journalism/JournalismApp';
+import { OlaveApp } from '../apps/olave/OlaveApp';
+import { PantryPalApp } from '../apps/pantrypal/PantryPalApp';
+import { MusicVideoApp } from '../apps/music/MusicVideoApp';
+import { OllamaStudioApp } from '../apps/ollama/OllamaStudioApp';
+import { AiDefendApp } from '../apps/aidefend/AiDefendApp';
+import { NovelWriterApp } from '../apps/novelwriter/NovelWriterApp';
+import { VisionaryApp } from '../apps/visionary/VisionaryApp';
+import { AdminOSApp } from '../apps/adminos/AdminOSApp';
+import { AipodcastApp } from '../apps/aipodcast/AipodcastApp';
 
 export interface WindowManagerProps {
   windows: WindowState[];
@@ -21,6 +30,7 @@ export interface WindowManagerProps {
   closeWindow: (id: string) => void;
   minimizeWindow: (id: string) => void;
   maximizeWindow: (id: string) => void;
+  onFullScreen: (id: string) => void;
   focusWindow: (id: string) => void;
   updateWindowPos: (id: string, x: number, y: number, w: number, h: number) => void;
   openApp: (appId: AppId, params?: Record<string, any>) => void;
@@ -37,6 +47,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
   closeWindow,
   minimizeWindow,
   maximizeWindow,
+  onFullScreen,
   focusWindow,
   updateWindowPos,
   openApp,
@@ -50,7 +61,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
     switch (window.appId) {
       case 'portfolio-browser':
       case 'browser':
-        return <ChromeBrowserApp />;
+        return <AyaBrowserApp openApp={openApp} />;
       case 'canvas-studio':
       case 'canvas':
         return <CanvasStudioApp />;
@@ -64,19 +75,38 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
       case 'ai-assistant':
       case 'assistant':
         return <AiAssistantApp />;
-      case 'arcade-game':
       case 'arcade':
-        return <ArcadeGameApp />;
+        return null;
       case 'notes':
         return <NotesApp />;
       case 'studio-app':
         return <StudioApp />;
       case 'busker-pad':
         return <BuskerPadApp />;
-      case 'podcast-studio':
-        return <PodcastStudioApp />;
-      case 'hermes-ebike':
-        return <HermesEbikeApp />;
+      case 'frame-flow':
+        return <FrameFlowApp />;
+      case 'haven-care':
+        return <HavenCareApp />;
+      case 'aya-journalism':
+        return <JournalismApp openApp={openApp} />;
+      case 'ol-ave':
+        return <OlaveApp />;
+      case 'pantry-pal':
+        return <PantryPalApp />;
+      case 'aya-music':
+        return <MusicVideoApp />;
+      case 'ollama-studio':
+        return <OllamaStudioApp />;
+      case 'aidefend':
+        return <AiDefendApp />;
+      case 'novel-writer':
+        return <NovelWriterApp />;
+      case 'ayasec-visionary':
+        return <VisionaryApp />;
+      case 'admin-os':
+        return <AdminOSApp />;
+      case 'ai-podcast':
+        return <AipodcastApp />;
       case 'settings':
         return (
           <SettingsApp
@@ -88,7 +118,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
           />
         );
       default:
-        return <ChromeBrowserApp />;
+        return <AyaBrowserApp openApp={openApp} />;
     }
   };
 
@@ -105,6 +135,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
             onClose={() => closeWindow(win.id)}
             onMinimize={() => minimizeWindow(win.id)}
             onMaximize={() => maximizeWindow(win.id)}
+            onFullScreen={() => onFullScreen(win.id)}
             onUpdatePosition={(x, y) => updateWindowPos(win.id, x, y, win.width, win.height)}
             onUpdateSize={(w, h) => updateWindowPos(win.id, win.x, win.y, w, h)}
             onSnap={() => {}}

@@ -219,7 +219,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 flex items-center gap-2.5">
                     <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
                     <div>
-                      <strong className="text-slate-200 block font-semibold">Crosh Terminal</strong>
+                      <strong className="text-slate-200 block font-semibold">Aya Terminal</strong>
                       <span className="text-[11px] text-slate-400">UNIX shell & neofetch</span>
                     </div>
                   </div>
@@ -248,13 +248,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                     </div>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 flex items-center gap-2.5">
-                    <Gamepad2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                    <div>
-                      <strong className="text-slate-200 block font-semibold">Space Defense</strong>
-                      <span className="text-[11px] text-slate-400">60fps Arcade Game engine</span>
-                    </div>
-                  </div>
+
 
                   <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 flex items-center gap-2.5">
                     <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />

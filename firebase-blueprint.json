@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Public user profile data.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification item.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "error"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "type", "createdAt"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Patient or client record.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string" },
+        "riskLevel": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["firstName", "lastName", "status", "createdAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "User task or to-do item.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "priority": { "type": "string" },
+        "status": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "priority", "status"]
+    },
+    "Partnership": {
+      "title": "Partnership",
+      "description": "Collaborating organization or partner.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "status"]
+    },
+    "Document": {
+      "title": "Document",
+      "description": "Client document reference.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "url": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "url"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Base user document."
+    },
+    "users/{userId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications."
+    },
+    "users/{userId}/clients/{clientId}": {
+      "schema": "Client",
+      "description": "User's managed clients."
+    },
+    "users/{userId}/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "User tasks."
+    },
+    "users/{userId}/partnerships/{partnershipId}": {
+      "schema": "Partnership",
+      "description": "User's community partnerships."
+    },
+    "users/{userId}/clients/{clientId}/documents/{docId}": {
+      "schema": "Document",
+      "description": "Documents associated with a client."
+    }
+  }
+}

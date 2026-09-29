@@ -1,0 +1,818 @@
+import express from 'express';
+import http from 'http';
+import path from 'path';
+import { WebSocketServer, WebSocket } from 'ws';
+import { createServer as createViteServer } from 'vite';
+import { GoogleGenAI } from '@google/genai';
+
+interface DeviceInfo {
+  deviceId: string;
+  name: string;
+  role: 'camera' | 'viewer';
+  joinedAt: number;
+  batteryLevel?: number;
+  isCharging?: boolean;
+  status: 'online' | 'streaming' | 'idle';
+  facingMode?: 'user' | 'environment';
+  torchOn?: boolean;
+  resolution?: string;
+  fps?: number;
+  privacyShutter?: boolean;
+}
+
+interface AIEventAnalysis {
+  category: 'person' | 'pet' | 'vehicle' | 'package' | 'unknown' | 'false_alarm';
+  summary: string;
+  urgency: 'low' | 'medium' | 'high';
+  confidence: number;
+  objects: string[];
+  analyzedAt: number;
+}
+
+interface MotionAlertEvent {
+  id: string;
+  cameraDeviceId: string;
+  cameraName: string;
+  timestamp: number;
+  motionScore: number;
+  snapshot?: string; // base64 thumbnail
+  aiAnalysis?: AIEventAnalysis;
+  clipUrl?: string;
+}
+
+interface RecordedClip {
+  id: string;
+  cameraDeviceId: string;
+  cameraName: string;
+  timestamp: number;
+  durationSeconds: number;
+  blobUrl: string;
+  thumbnailUrl?: string;
+  motionScore?: number;
+  aiCategory?: string;
+}
+
+interface AuditLogEntry {
+  id: string;
+  timestamp: number;
+  level: 'info' | 'warn' | 'alert';
+  action: string;
+  details: string;
+  deviceId?: string;
+  deviceName?: string;
+}
+
+interface SpaceData {
+  spaceId: string;
+  name: string;
+  accessCode: string;
+  createdAt: number;
+  securityMode: 'disarmed' | 'home' | 'away';
+  devices: Map<string, { info: DeviceInfo; ws: WebSocket }>;
+  motionEvents: MotionAlertEvent[];
+  auditLogs: AuditLogEntry[];
+  recordedClips: RecordedClip[];
+}
+
+interface ExtWebSocket extends WebSocket {
+  isAlive?: boolean;
+}
+
+const spaces = new Map<string, SpaceData>();
+const socketToDeviceMap = new WeakMap<WebSocket, { spaceId: string; deviceId: string }>();
+
+const app = express();
+const PORT = 3000;
+
+app.use(express.json({ limit: '25mb' }));
+
+// Helper to log audit entries
+function addAuditLog(space: SpaceData, log: Omit<AuditLogEntry, 'id' | 'timestamp'>) {
+  const entry: AuditLogEntry = {
+    id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    timestamp: Date.now(),
+    ...log,
+  };
+  space.auditLogs.unshift(entry);
+  if (space.auditLogs.length > 200) {
+    space.auditLogs.pop();
+  }
+  return entry;
+}
+
+// REST APIs
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    activeSpaces: spaces.size,
+    hasGemini: !!process.env.GEMINI_API_KEY,
+    timestamp: Date.now(),
+  });
+});
+
+app.get('/api/spaces', (req, res) => {
+  const result: any[] = [];
+  for (const [id, space] of spaces.entries()) {
+    const devs: any[] = [];
+    for (const [, d] of space.devices) {
+      devs.push({
+        deviceId: d.info.deviceId,
+        name: d.info.name,
+        role: d.info.role,
+        status: d.info.status,
+      });
+    }
+    result.push({
+      spaceId: id,
+      name: space.name,
+      accessCode: space.accessCode,
+      deviceCount: space.devices.size,
+      securityMode: space.securityMode,
+      devices: devs,
+    });
+  }
+  res.json(result);
+});
+
+app.get('/api/spaces/:spaceId/status', (req, res) => {
+  const spaceId = req.params.spaceId.trim().toLowerCase();
+  const space = spaces.get(spaceId);
+  if (!space) {
+    return res.json({ exists: false, cameraCount: 0, viewerCount: 0 });
+  }
+
+  let cameraCount = 0;
+  let viewerCount = 0;
+  for (const [, dev] of space.devices) {
+    if (dev.info.role === 'camera') cameraCount++;
+    else viewerCount++;
+  }
+
+  res.json({
+    exists: true,
+    name: space.name,
+    securityMode: space.securityMode,
+    cameraCount,
+    viewerCount,
+  });
+});
+
+app.post('/api/spaces/verify', (req, res) => {
+  const { spaceId, accessCode } = req.body;
+  if (!spaceId || typeof spaceId !== 'string') {
+    return res.status(400).json({ valid: false, message: 'Space ID is required' });
+  }
+
+  const cleanId = spaceId.trim().toLowerCase();
+  const space = spaces.get(cleanId);
+  if (!space) {
+    return res.json({ valid: true, isNew: true });
+  }
+
+  if (space.accessCode === accessCode) {
+    return res.json({ valid: true, isNew: false, name: space.name });
+  }
+
+  return res.status(401).json({ valid: false, message: 'Incorrect Access Code / Password' });
+});
+
+// Audit Logs API
+app.get('/api/spaces/:spaceId/audit-logs', (req, res) => {
+  const spaceId = req.params.spaceId.trim().toLowerCase();
+  const space = spaces.get(spaceId);
+  if (!space) {
+    return res.json({ logs: [] });
+  }
+  res.json({ logs: space.auditLogs });
+});
+
+// Recordings / DVR API
+app.get('/api/spaces/:spaceId/recordings', (req, res) => {
+  const spaceId = req.params.spaceId.trim().toLowerCase();
+  const space = spaces.get(spaceId);
+  if (!space) {
+    return res.json({ clips: [] });
+  }
+  res.json({ clips: space.recordedClips });
+});
+
+app.post('/api/spaces/:spaceId/recordings', (req, res) => {
+  const spaceId = req.params.spaceId.trim().toLowerCase();
+  const space = spaces.get(spaceId);
+  if (!space) {
+    return res.status(404).json({ error: 'Space not found' });
+  }
+
+  const { cameraDeviceId, cameraName, durationSeconds, blobUrl, thumbnailUrl, motionScore, aiCategory } = req.body;
+  const clip: RecordedClip = {
+    id: `clip_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    cameraDeviceId: cameraDeviceId || 'camera',
+    cameraName: cameraName || 'Camera',
+    timestamp: Date.now(),
+    durationSeconds: Number(durationSeconds) || 10,
+    blobUrl,
+    thumbnailUrl,
+    motionScore,
+    aiCategory,
+  };
+
+  space.recordedClips.unshift(clip);
+  if (space.recordedClips.length > 100) {
+    space.recordedClips.pop();
+  }
+
+  addAuditLog(space, {
+    level: 'info',
+    action: 'Clip Recorded',
+    details: `${clip.durationSeconds}s DVR video clip saved (${aiCategory || 'Motion event'})`,
+    deviceId: cameraDeviceId,
+    deviceName: cameraName,
+  });
+
+  res.json({ success: true, clip });
+});
+
+// Smart AI Frame & Motion Event Analysis Endpoint
+app.post('/api/ai/analyze-frame', async (req, res) => {
+  try {
+    const { imageBase64, spaceName, motionScore } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'Image data is required' });
+    }
+
+    const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+
+    if (process.env.GEMINI_API_KEY) {
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
+
+      const prompt = `You are a real-time smart security camera AI analyzer.
+Analyze this video camera snapshot taken during a security motion alert (Motion score: ${motionScore || 'N/A'}/100, Space: "${spaceName || 'Monitored Room'}").
+Determine:
+1. What category of entity caused this motion? Choose ONE: 'person', 'pet', 'vehicle', 'package', 'unknown', or 'false_alarm' (e.g. slight shadow, lighting flicker, curtain rustle).
+2. A concise 1-sentence summary description of what is seen (e.g., "Person walking past the doorway", "Dog moving across the carpet", "Shadow change across wall").
+3. Urgency level: 'high' (unrecognized human intrusion, tampering), 'medium' (pet or known activity), or 'low' (false alarm, minor shadow).
+4. Estimated confidence percentage (1-100).
+5. Detected prominent objects (array of strings, e.g. ["person", "door", "bed"]).
+
+Return valid JSON adhering to this exact format:
+{
+  "category": "person" | "pet" | "vehicle" | "package" | "unknown" | "false_alarm",
+  "summary": "Short 1-sentence description",
+  "urgency": "low" | "medium" | "high",
+  "confidence": 88,
+  "objects": ["person"]
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            inlineData: {
+              data: cleanBase64,
+              mimeType: 'image/jpeg',
+            },
+          },
+          prompt,
+        ],
+        config: {
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const text = response.text?.trim() || '{}';
+      let parsed: any = {};
+      try {
+        parsed = JSON.parse(text);
+      } catch (_) {}
+
+      return res.json({
+        success: true,
+        analysis: {
+          category: parsed.category || 'unknown',
+          summary: parsed.summary || 'Movement detected in camera view',
+          urgency: parsed.urgency || 'medium',
+          confidence: Number(parsed.confidence) || 85,
+          objects: Array.isArray(parsed.objects) ? parsed.objects : ['movement'],
+          analyzedAt: Date.now(),
+        },
+      });
+    } else {
+      // Heuristic fallback if Gemini API key is not present in environment
+      const score = Number(motionScore) || 20;
+      const isSignificant = score > 40;
+      return res.json({
+        success: true,
+        analysis: {
+          category: isSignificant ? 'person' : 'unknown',
+          summary: isSignificant ? 'Significant movement detected in monitored zone' : 'Subtle lighting or motion variance detected',
+          urgency: score > 60 ? 'high' : 'medium',
+          confidence: Math.min(95, Math.max(50, Math.round(score * 1.2))),
+          objects: ['motion_target'],
+          analyzedAt: Date.now(),
+        },
+      });
+    }
+  } catch (err: any) {
+    console.error('AI frame analysis error:', err);
+    return res.json({
+      success: true,
+      analysis: {
+        category: 'unknown',
+        summary: 'Optical motion detected across sensor',
+        urgency: 'medium',
+        confidence: 75,
+        objects: ['movement'],
+        analyzedAt: Date.now(),
+      },
+    });
+  }
+});
+
+async function start() {
+  const server = http.createServer(app);
+  const wss = new WebSocketServer({ server });
+
+  function broadcastToSpace(spaceId: string, message: any, excludeWs?: WebSocket) {
+    const space = spaces.get(spaceId);
+    if (!space) return;
+    const payload = JSON.stringify(message);
+    for (const [, client] of space.devices) {
+      if (client.ws !== excludeWs && client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(payload);
+      }
+    }
+  }
+
+  function getSpaceDevicesList(space: SpaceData): DeviceInfo[] {
+    return Array.from(space.devices.values()).map((d) => d.info);
+  }
+
+  wss.on('connection', (ws: ExtWebSocket) => {
+    ws.isAlive = true;
+
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
+
+    ws.on('message', (rawData) => {
+      try {
+        const msg = JSON.parse(rawData.toString());
+
+        switch (msg.type) {
+          case 'ping': {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: 'pong',
+                  clientTime: msg.clientTime,
+                  serverTime: Date.now(),
+                })
+              );
+            }
+            break;
+          }
+
+          case 'join_space': {
+            const rawSpaceId = (msg.spaceId || '').trim().toLowerCase();
+            const accessCode = (msg.accessCode || '').trim();
+            const deviceId = msg.deviceId || `dev_${Math.random().toString(36).slice(2, 9)}`;
+            const deviceName = msg.deviceName || 'Device';
+            const role: 'camera' | 'viewer' = msg.role === 'camera' ? 'camera' : 'viewer';
+
+            if (!rawSpaceId) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Space ID is required' }));
+              return;
+            }
+
+            let space = spaces.get(rawSpaceId);
+            if (!space) {
+              // Create new space
+              space = {
+                spaceId: rawSpaceId,
+                name: msg.spaceName || rawSpaceId,
+                accessCode: accessCode,
+                createdAt: Date.now(),
+                securityMode: 'disarmed',
+                devices: new Map(),
+                motionEvents: [],
+                auditLogs: [],
+                recordedClips: [],
+              };
+              spaces.set(rawSpaceId, space);
+            } else {
+              // Verify access code
+              if (space.accessCode && space.accessCode !== accessCode) {
+                ws.send(
+                  JSON.stringify({
+                    type: 'auth_failed',
+                    message: 'Incorrect access code for this Space',
+                  })
+                );
+                return;
+              }
+            }
+
+            // Close existing socket with same device ID if reconnecting
+            const existingInSpace = space.devices.get(deviceId);
+            if (existingInSpace && existingInSpace.ws !== ws) {
+              try {
+                socketToDeviceMap.delete(existingInSpace.ws);
+                existingInSpace.ws.close();
+              } catch (_) {}
+            }
+
+            // Register device in space
+            const deviceInfo: DeviceInfo = {
+              deviceId,
+              name: deviceName,
+              role,
+              joinedAt: Date.now(),
+              status: role === 'camera' ? 'streaming' : 'online',
+              batteryLevel: msg.batteryLevel,
+              isCharging: msg.isCharging,
+              facingMode: msg.facingMode,
+              torchOn: false,
+              resolution: msg.resolution,
+              privacyShutter: false,
+            };
+
+            // If existing socket was in a space, remove it first
+            const existingMapping = socketToDeviceMap.get(ws);
+            if (existingMapping) {
+              const oldSpace = spaces.get(existingMapping.spaceId);
+              if (oldSpace) {
+                oldSpace.devices.delete(existingMapping.deviceId);
+                broadcastToSpace(existingMapping.spaceId, {
+                  type: 'device_left',
+                  deviceId: existingMapping.deviceId,
+                  devices: getSpaceDevicesList(oldSpace),
+                });
+              }
+            }
+
+            space.devices.set(deviceId, { info: deviceInfo, ws });
+            socketToDeviceMap.set(ws, { spaceId: rawSpaceId, deviceId });
+
+            addAuditLog(space, {
+              level: 'info',
+              action: 'Device Joined',
+              details: `${deviceName} connected as ${role.toUpperCase()}`,
+              deviceId,
+              deviceName,
+            });
+
+            // Send confirmation and full current state to this device
+            ws.send(
+              JSON.stringify({
+                type: 'joined_success',
+                spaceId: space.spaceId,
+                spaceName: space.name,
+                role,
+                deviceId,
+                securityMode: space.securityMode,
+                devices: getSpaceDevicesList(space),
+                motionEvents: space.motionEvents.slice(-30),
+                recordedClips: space.recordedClips.slice(0, 30),
+                auditLogs: space.auditLogs.slice(0, 50),
+              })
+            );
+
+            // Broadcast to other peers in space
+            broadcastToSpace(
+              rawSpaceId,
+              {
+                type: 'device_joined',
+                device: deviceInfo,
+                devices: getSpaceDevicesList(space),
+              },
+              ws
+            );
+            break;
+          }
+
+          case 'update_device_status': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+            const dev = space.devices.get(mapping.deviceId);
+            if (!dev) return;
+
+            Object.assign(dev.info, msg.updates || {});
+            broadcastToSpace(mapping.spaceId, {
+              type: 'device_updated',
+              device: dev.info,
+              devices: getSpaceDevicesList(space),
+            });
+            break;
+          }
+
+          case 'set_security_mode': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+
+            const newMode = msg.securityMode as 'disarmed' | 'home' | 'away';
+            if (['disarmed', 'home', 'away'].includes(newMode)) {
+              space.securityMode = newMode;
+              addAuditLog(space, {
+                level: newMode === 'away' ? 'alert' : 'info',
+                action: 'Security Mode Changed',
+                details: `System mode changed to ${newMode.toUpperCase()}`,
+                deviceId: mapping.deviceId,
+              });
+              broadcastToSpace(mapping.spaceId, {
+                type: 'security_mode_changed',
+                securityMode: newMode,
+              });
+            }
+            break;
+          }
+
+          case 'save_recorded_clip': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+
+            const clip: RecordedClip = {
+              id: `clip_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              cameraDeviceId: mapping.deviceId,
+              cameraName: msg.cameraName || 'Camera',
+              timestamp: Date.now(),
+              durationSeconds: msg.durationSeconds || 10,
+              blobUrl: msg.blobUrl,
+              thumbnailUrl: msg.thumbnailUrl,
+              motionScore: msg.motionScore,
+              aiCategory: msg.aiCategory,
+            };
+            space.recordedClips.unshift(clip);
+            if (space.recordedClips.length > 50) {
+              space.recordedClips.pop();
+            }
+
+            broadcastToSpace(mapping.spaceId, {
+              type: 'new_clip_recorded',
+              clip,
+            });
+            break;
+          }
+
+          case 'privacy_shutter_toggle': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+
+            const dev = space.devices.get(mapping.deviceId);
+            if (dev) {
+              dev.info.privacyShutter = !!msg.enabled;
+              addAuditLog(space, {
+                level: 'warn',
+                action: 'Privacy Shutter Toggled',
+                details: `${dev.info.name} privacy shutter ${msg.enabled ? 'ENGAGED' : 'OPENED'}`,
+                deviceId: mapping.deviceId,
+                deviceName: dev.info.name,
+              });
+              broadcastToSpace(mapping.spaceId, {
+                type: 'device_updated',
+                device: dev.info,
+                devices: getSpaceDevicesList(space),
+              });
+            }
+            break;
+          }
+
+          // Live frame relay (WebSockets fallback or complementary stream)
+          case 'camera_frame': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+
+            const framePayload = {
+              type: 'camera_frame',
+              cameraDeviceId: mapping.deviceId,
+              frame: msg.frame, // base64 jpeg
+              timestamp: msg.timestamp || Date.now(),
+              motionScore: msg.motionScore || 0,
+            };
+
+            // Forward directly to viewers (skipping if viewer has socket buffer backlog)
+            for (const [, dev] of space.devices) {
+              if (dev.info.role === 'viewer' && dev.ws.readyState === WebSocket.OPEN) {
+                if ((dev.ws as any).bufferedAmount > 64 * 1024) {
+                  continue; // Backpressure guard: skip frame to prevent latency build-up
+                }
+                dev.ws.send(JSON.stringify(framePayload));
+              }
+            }
+            break;
+          }
+
+          // Motion Alert
+          case 'motion_detected': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+            const cameraDev = space.devices.get(mapping.deviceId);
+
+            const alertEvent: MotionAlertEvent = {
+              id: `motion_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              cameraDeviceId: mapping.deviceId,
+              cameraName: cameraDev ? cameraDev.info.name : 'Camera',
+              timestamp: Date.now(),
+              motionScore: msg.motionScore || 1,
+              snapshot: msg.snapshot,
+              aiAnalysis: msg.aiAnalysis,
+              clipUrl: msg.clipUrl,
+            };
+
+            space.motionEvents.unshift(alertEvent);
+            if (space.motionEvents.length > 50) {
+              space.motionEvents.pop();
+            }
+
+            addAuditLog(space, {
+              level: space.securityMode === 'away' ? 'alert' : 'warn',
+              action: 'Motion Alert',
+              details: `Motion detected (${msg.motionScore || 1}%) on ${cameraDev ? cameraDev.info.name : 'Camera'}`,
+              deviceId: mapping.deviceId,
+              deviceName: cameraDev ? cameraDev.info.name : 'Camera',
+            });
+
+            broadcastToSpace(mapping.spaceId, {
+              type: 'motion_alert',
+              alert: alertEvent,
+            });
+            break;
+          }
+
+          // WebRTC Signaling
+          case 'webrtc_offer':
+          case 'webrtc_answer':
+          case 'webrtc_ice_candidate': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+
+            const target = space.devices.get(msg.targetDeviceId);
+            if (target && target.ws.readyState === WebSocket.OPEN) {
+              target.ws.send(
+                JSON.stringify({
+                  type: msg.type,
+                  senderDeviceId: mapping.deviceId,
+                  sdp: msg.sdp,
+                  candidate: msg.candidate,
+                })
+              );
+            }
+            break;
+          }
+
+          // Remote Commands (viewer -> camera, e.g. siren, torch, talkback)
+          case 'remote_command': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+
+            const target = space.devices.get(msg.targetDeviceId);
+            if (target && target.ws.readyState === WebSocket.OPEN) {
+              target.ws.send(
+                JSON.stringify({
+                  type: 'remote_command',
+                  fromDeviceId: mapping.deviceId,
+                  command: msg.command,
+                  value: msg.value,
+                })
+              );
+            }
+            break;
+          }
+
+          // Intercom Audio chunk (Push-to-talk)
+          case 'intercom_audio': {
+            const mapping = socketToDeviceMap.get(ws);
+            if (!mapping) return;
+            const space = spaces.get(mapping.spaceId);
+            if (!space) return;
+
+            const target = space.devices.get(msg.targetDeviceId);
+            if (target && target.ws.readyState === WebSocket.OPEN) {
+              target.ws.send(
+                JSON.stringify({
+                  type: 'intercom_audio',
+                  fromDeviceId: mapping.deviceId,
+                  audioData: msg.audioData,
+                })
+              );
+            }
+            break;
+          }
+
+          case 'leave_space': {
+            handleDisconnect(ws);
+            break;
+          }
+        }
+      } catch (err) {
+        console.error('WebSocket message parsing error:', err);
+      }
+    });
+
+    ws.on('close', () => {
+      handleDisconnect(ws);
+    });
+
+    ws.on('error', (err) => {
+      console.error('WebSocket connection error:', err);
+      handleDisconnect(ws);
+    });
+  });
+
+  function handleDisconnect(ws: WebSocket) {
+    const mapping = socketToDeviceMap.get(ws);
+    if (!mapping) return;
+    socketToDeviceMap.delete(ws);
+
+    const space = spaces.get(mapping.spaceId);
+    if (!space) return;
+
+    space.devices.delete(mapping.deviceId);
+
+    addAuditLog(space, {
+      level: 'info',
+      action: 'Device Left',
+      details: `Device ${mapping.deviceId} disconnected`,
+      deviceId: mapping.deviceId,
+    });
+
+    broadcastToSpace(mapping.spaceId, {
+      type: 'device_left',
+      deviceId: mapping.deviceId,
+      devices: getSpaceDevicesList(space),
+    });
+
+    // If space has no devices left for more than 10 minutes, clean up
+    if (space.devices.size === 0) {
+      setTimeout(() => {
+        const check = spaces.get(mapping.spaceId);
+        if (check && check.devices.size === 0) {
+          spaces.delete(mapping.spaceId);
+        }
+      }, 10 * 60 * 1000);
+    }
+  }
+
+  // Vite middleware or static serving
+  if (process.env.NODE_ENV !== 'production') {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+    // Active heartbeat check every 15s to keep connections alive and clear dead sockets
+    const heartbeatTimer = setInterval(() => {
+      wss.clients.forEach((client) => {
+        const extWs = client as ExtWebSocket;
+        if (extWs.isAlive === false) {
+          handleDisconnect(extWs);
+          return extWs.terminate();
+        }
+        extWs.isAlive = false;
+        extWs.ping();
+      });
+    }, 15000);
+
+    server.on('close', () => {
+      clearInterval(heartbeatTimer);
+    });
+
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`AYASEC Security Cam server running on http://0.0.0.0:${PORT}`);
+    });
+}
+
+start().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});

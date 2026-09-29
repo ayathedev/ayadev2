@@ -9,7 +9,7 @@ export const WALLPAPERS: Wallpaper[] = [
     name: 'ChromeOS Motion Fluid',
     url: chromeosAbstract,
     thumbnail: chromeosAbstract,
-    category: 'Chrome OS'
+    category: 'Aya OS Motion'
   },
   {
     id: 'dark-space',

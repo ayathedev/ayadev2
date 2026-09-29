@@ -16,8 +16,18 @@ export type AppId =
   | 'ai-assistant'
   | 'studio-app'
   | 'busker-pad'
-  | 'podcast-studio'
-  | 'hermes-ebike';
+  | 'frame-flow'
+  | 'haven-care'
+  | 'ol-ave'
+  | 'pantry-pal'
+  | 'aya-music'
+  | 'ollama-studio'
+  | 'aidefend'
+  | 'novel-writer'
+  | 'ayasec-visionary'
+  | 'aya-journalism'
+  | 'admin-os'
+  | 'ai-podcast';
 
 export interface AppMetadata {
   id: AppId;
@@ -43,6 +53,7 @@ export interface WindowState {
   zIndex: number;
   isMinimized: boolean;
   isMaximized: boolean;
+  isFullScreen?: boolean;
   snapState?: 'left' | 'right' | null;
   customData?: any;
 }
@@ -65,6 +76,7 @@ export interface UserProfile {
 
 export interface ProjectItem {
   id: string;
+  appId?: AppId;
   title: string;
   subtitle?: string;
   category: string;

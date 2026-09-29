@@ -15,8 +15,12 @@ import {
   Sparkles,
   Radio,
   Layers,
+  Film,
+  HeartHandshake,
+  Newspaper,
+  Box,
+  LayoutGrid,
   Mic,
-  Bike,
   X
 } from 'lucide-react';
 import { playUiSound } from '../../utils/soundEffects';
@@ -40,8 +44,12 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
   Settings,
   Radio,
   Layers,
+  Film,
+  HeartHandshake,
+  Newspaper,
+  Box,
+  LayoutGrid,
   Mic,
-  Bike,
 };
 
 export const Launcher: React.FC<LauncherProps> = ({
@@ -97,12 +105,15 @@ export const Launcher: React.FC<LauncherProps> = ({
           {/* Profile Card Header */}
           <div className="px-5 py-3.5 bg-slate-950/40 border-b border-slate-800/80 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-white text-sm shadow-md">
-                A
-              </div>
+              <img
+                src="/avatar.jpg"
+                alt="Aya Kalimah Satya Ruane"
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-cyan-500/40 shadow-md shrink-0"
+                referrerPolicy="no-referrer"
+              />
               <div>
                 <h3 className="text-xs font-bold text-slate-200">Aya Kalimah Satya Ruane</h3>
-                <p className="text-[11px] text-slate-400">Aya OS Portfolio Edition • Hotspot Access Point</p>
+                <p className="text-[11px] text-slate-400">Aya OS Portfolio Edition</p>
               </div>
             </div>
 
